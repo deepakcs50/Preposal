@@ -1,0 +1,62 @@
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+
+local Remotes = ReplicatedStorage:WaitForChild('Remotes')
+local Utilities = Remotes.Utilities
+
+local Statistics = ReplicatedStorage:WaitForChild('Statistics')
+local Kills = Statistics.Kills
+local Time = Statistics.Time
+local Start = Statistics.Start
+local Headshots = Statistics.Headshots
+
+local Frame = script.Parent.Frame
+local Alive = Frame.Alive
+local Killed = Frame.Killed
+local Headshot = Frame.Headshots
+local Play = Frame.TextButton
+
+local function disp_time(Time)
+    local days = math.floor(Time / 86400)
+    local hours = math.floor(math.fmod(Time, 86400) / 3600)
+    local minutes = math.floor(math.fmod(Time, 3600) / 60)
+    local seconds = math.floor(math.fmod(Time, 60))
+    if Time <= 60 then
+        return string.format("%d s", seconds)
+    elseif Time > 60 and Time <= 3600 then
+        return string.format("%d m, %d s", minutes, seconds)
+    elseif Time > 3600 and Time <= 86400 then
+        return string.format("%d h, %d m, %d s", hours, minutes, seconds)
+    else
+        return string.format("%d d, %d h, %d m, %d s", days, hours, minutes, seconds)
+    end
+end
+
+Kills:GetPropertyChangedSignal('Value'):Connect(function()
+    Killed.Text = "Killed: " .. Kills.Value
+end)
+
+Time:GetPropertyChangedSignal('Value'):Connect(function()
+    Alive.Text = "Time Alive: " .. disp_time(Time.Value)
+end)
+
+Headshots:GetPropertyChangedSignal('Value'):Connect(function()
+    Headshot.Text = "Headshots: " .. Headshots.Value
+end)
+
+Start:GetPropertyChangedSignal('Value'):Connect(function()
+    if not Start.Value then
+        Play.Text = 'Play'
+        Play.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    else
+        Play.Text = 'Stop'
+        Play.BackgroundColor3 = Color3.fromRGB(255, 255, 127)
+    end
+end)
+
+Play.MouseButton1Click:Connect(function()
+    if not Start.Value then
+        Utilities:FireServer('START_GAME')
+    else
+        Utilities:FireServer('STOP_GAME')
+    end
+end)
