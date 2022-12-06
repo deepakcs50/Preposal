@@ -1,0 +1,12 @@
+local GunStats = {
+    RANGE = 9999;
+    FIRE_RATE = 0.1;
+    SPREAD = 1;
+    DAMAGE = {
+        Head = 20;
+        Torso = 15;
+        Other = 10;
+    }
+}
+
+return GunStats
