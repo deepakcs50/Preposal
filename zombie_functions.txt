@@ -1,0 +1,163 @@
+local PathfindingService = game:GetService('PathfindingService')
+local TweenService = game:GetService('TweenService')
+local Players = game:GetService('Players')
+
+local HumanoidRootPart = script.Parent.HumanoidRootPart
+local Humanoid = script.Parent.Humanoid
+local DamageDebounce = false
+
+local function FindTargetHead()
+	local Target, TargetHum = nil
+	
+	for _, Player in next, Players:GetPlayers() do
+		if Player.Character then
+			local PlayerHum = Player.Character:FindFirstChild('Humanoid')
+			local PlayerHead = Player.Character:FindFirstChild('Head')
+			
+			if not PlayerHum or not PlayerHead then continue end
+			
+			Target = PlayerHead
+			TargetHum = PlayerHum
+		end
+	end
+	
+	return Target, TargetHum
+end
+
+Humanoid.Died:Connect(function()
+	task.delay(1, function()
+		for _, Part in next, script.Parent:GetDescendants() do
+			if Part:IsA('BasePart') then
+				TweenService:Create(Part, TweenInfo.new(1), {
+					Transparency = 1
+				}):Play()
+			end
+		end
+		task.wait(1)
+		script.Parent:Destroy()
+	end)
+end)
+
+local ShowHP = function()
+	if script.Parent:FindFirstChild('Head') then
+		local Overhead = script.Parent.Head:FindFirstChild('Overhead')
+		if not Overhead then return end
+		
+		local Health = Overhead.HealthBar.Health
+		
+		delay(1, function()
+			Health.Size = UDim2.new(Humanoid.Health / Humanoid.MaxHealth, 0, 1, 0)
+				
+			local new = (Humanoid.Health <= 20) and BrickColor.Red().Color or (Humanoid.Health > 20 and Humanoid.Health <= 60) and BrickColor.new("Bright yellow").Color or (Humanoid.Health > 60) and BrickColor.Green().Color
+			if Health.BackgroundColor3 ~= new then
+				Health.BackgroundColor3 = new
+			end
+		end)
+
+		local hel = Humanoid.Changed:Connect(function()
+			Health.Size = UDim2.new(Humanoid.Health / Humanoid.MaxHealth, 0, 1, 0)
+
+			local new = (Humanoid.Health <= 20) and BrickColor.Red().Color or (Humanoid.Health > 20 and Humanoid.Health <= 60) and BrickColor.new("Bright yellow").Color or (Humanoid.Health > 60) and BrickColor.Green().Color
+			if Health.BackgroundColor3 ~= new then
+				Health.BackgroundColor3 = new
+			end
+		end)
+	end
+end
+
+local GiveOwnerShip = function()
+	for _, Part in next, script.Parent:GetChildren() do
+		if Part:IsA('BasePart') then
+			local Player = Players:FindFirstChildOfClass('Player')
+			
+			if Player then
+				Part:SetNetworkOwner(Player)
+			end
+		end
+	end
+end
+
+GiveOwnerShip()
+ShowHP()
+
+local Animation = script.Parent.Animation
+local Track = Humanoid.Animator:LoadAnimation(Animation)
+Track:Play()
+
+while task.wait() do
+	local Head, TargetHumanoid = FindTargetHead()
+	
+	if not Head or not TargetHumanoid then continue end
+	
+	local Path = PathfindingService:FindPathAsync(HumanoidRootPart.Position, Head.Position)
+	local Points = Path:GetWaypoints()
+
+	if Path.Status == Enum.PathStatus.Success then
+				
+		local OnePoint = true
+				
+		for _, Point in next, Points do
+			
+			if (HumanoidRootPart.Position - Head.Position).Magnitude > 25 then
+				if OnePoint then
+					Position = Point.Position + Vector3.new(23, 0, 0)						
+					OnePoint = false
+				else
+					Position = Point.Position + Vector3.new(0, 0, 23)
+					OnePoint = true
+				end
+			else
+				if (HumanoidRootPart.Position - Head.Position).Magnitude > 20 then
+					if OnePoint then
+						Position = Point.Position + Vector3.new(18, 0, 0)						
+						OnePoint = false
+					else
+						Position = Point.Position + Vector3.new(0, 0, 18)
+						OnePoint = true
+					end
+				else
+					if (HumanoidRootPart.Position - Head.Position).Magnitude > 15 then
+						if OnePoint then
+							Position = Point.Position + Vector3.new(13, 0, 0)						
+							OnePoint = false
+						else
+							Position = Point.Position + Vector3.new(0, 0, 13)
+							OnePoint = true
+						end
+					else
+						Position = Point.Position
+					end
+				end
+			end
+			
+			if (HumanoidRootPart.Position - Head.Position).Magnitude > 10 then
+				Humanoid.Jump = true
+			end
+			
+			Humanoid:MoveTo(Position)
+
+			if Point.Action == Enum.PathWaypointAction.Jump then
+				Humanoid.Jump = true
+			end
+		end
+
+	else
+		
+		Humanoid:MoveTo(Head.Position)
+		
+	end
+	
+	if not DamageDebounce then
+		if (Head.Position - HumanoidRootPart.Position).Magnitude <= 5 then
+			if Humanoid.Health > 0 then
+				DamageDebounce = true
+				
+				TargetHumanoid:TakeDamage(15)
+				
+				task.delay(1.5, function()
+					DamageDebounce = false
+				end)
+			end
+		end
+	end
+end
