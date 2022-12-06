@@ -1,0 +1,117 @@
+-- game comms
+local ServerStorage = game:GetService('ServerStorage')
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Players = game:GetService('Players')
+local TweenService = game:GetService('TweenService')
+
+local Remotes = ReplicatedStorage:WaitForChild('Remotes')
+local Utilities = Remotes.Utilities
+
+local Statistics = ReplicatedStorage:WaitForChild('Statistics')
+local Start = Statistics.Start
+local Time = Statistics.Time
+local Kills = Statistics.Kills
+local Headshots = Statistics.Headshots
+
+local Modules = ServerStorage:WaitForChild('Modules')
+local SpawnModule = require(Modules.Spawn)
+
+local Storage = ServerStorage:WaitForChild('Storage')
+local Photon = Storage.Photon
+
+local GAME_STATS = {
+    
+    SPAWN_TIME = 1.5; -- Delay between every zombie spawned.
+    SPAWN_IN_ZONE = 2.5; -- Delay between every zone spawn (After the previous zone is done spawning zombies.)
+    ZOMBIE_SPEED = 15; -- Speed of the spawned Zombies.
+    
+}
+
+Start:GetPropertyChangedSignal('Value'):Connect(function()
+    
+    if Start.Value then
+        local RoundStats = GAME_STATS
+        local WantedPlayer
+        
+        for _, Player in next, Players:GetPlayers() do
+            Player:LoadCharacter()
+            
+            WantedPlayer = Player
+            
+            if Player.Character and Player.Character:FindFirstChild('Humanoid') then
+                Player.Character.Humanoid.Died:Connect(function()
+                    Start.Value = false
+                    task.wait(2)
+                    Player:LoadCharacter()
+                end)
+            end
+            
+            local Gun = Photon:Clone()
+            Gun.Parent = Player.Character
+            Gun.LocalScript.Enabled = true
+        end
+        
+        task.spawn(function()
+            while task.wait(1) do
+                Time.Value += 1
+                
+                if (Time.Value % 60) == 0 then
+                    RoundStats.SPAWN_TIME -= 0.1
+                    RoundStats.SPAWN_IN_ZONE -= 0.1
+                    RoundStats.ZOMBIE_SPEED += 0.2
+                end
+                
+                if not Start.Value then
+                    break
+                end
+            end
+        end)
+        
+        task.spawn(function()
+            while true do
+                
+                task.wait(RoundStats.SPAWN_IN_ZONE)
+                
+                local RandomZone = workspace.Map.Spawn:GetChildren()[math.random(4)]
+                
+                for i = 1, 5 do
+                    SpawnModule:Create(RandomZone, RoundStats.ZOMBIE_SPEED)
+                    
+                    task.wait(RoundStats.SPAWN_TIME)
+                    
+                    if not Start.Value then
+                        break
+                    end
+                end    
+                
+                if not Start.Value then
+                    break
+                end
+            end
+        end)
+    else
+        for _, Zombie in next, workspace:GetChildren() do
+            if Zombie:IsA('Model') and Zombie.Name == 'Zombie' then
+                Zombie:Destroy()
+            end
+        end
+        
+        TweenService:Create(Time, TweenInfo.new(1, Enum.EasingStyle.Quart), {
+            Value = 0;
+        }):Play()
+        
+        TweenService:Create(Kills, TweenInfo.new(1, Enum.EasingStyle.Quart), {
+            Value = 0;
+        }):Play()
+        
+        TweenService:Create(Headshots, TweenInfo.new(1, Enum.EasingStyle.Quart), {
+            Value = 0;
+        }):Play()
+        
+        task.delay(1, function()
+            Time.Value = 0
+            Kills.Value = 0
+            Headshots.Value = 0
+        end)
+    end
+end)
