@@ -1,0 +1,121 @@
+--game process
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+
+local Modules = ReplicatedStorage:WaitForChild('Modules')
+local Settings = require(Modules.Gun)
+
+local Remotes = ReplicatedStorage:WaitForChild('Remotes')
+local Utilities = Remotes.Utilities
+
+local Statistics = ReplicatedStorage:WaitForChild('Statistics')
+local Kills = Statistics.Kills
+local Time = Statistics.Time
+local Start = Statistics.Start
+local Headshots = Statistics.Headshots
+
+local Debounce = {}
+
+Utilities.OnServerEvent:Connect(function(Player, ...)
+    local Arguments = {...}
+    
+    if Arguments[1] == 'Motor6D' then
+        
+        local Tool = Arguments[2]
+        local Bool = Arguments[3]
+        
+        if not Tool then return end
+        if not Player.Character or not Player.Character:FindFirstChild('Torso') then return end
+        
+        local Motor6D = Player.Character.Torso:FindFirstChild('Motor6D')
+        
+        if Bool then
+            
+            if Motor6D then return end
+            
+            Motor6D = Instance.new('Motor6D')
+            Motor6D.Part0 = Player.Character:FindFirstChild('Torso')
+            Motor6D.Part1 = Tool.Handle
+            Motor6D.Parent = Motor6D.Part0
+            
+            return
+        end
+        
+        if Motor6D then
+            Motor6D:Destroy()
+        end
+        
+    elseif Arguments[1] == 'Damage' then
+        
+        local function FindZombie(Part)
+            for _, Zombie in next, workspace:GetChildren() do
+                if Zombie:IsA('Model') and Zombie.Name == 'Zombie' then
+                    if Part:IsDescendantOf(Zombie) then
+                        return Zombie
+                    end
+                end
+            end
+        end
+        
+        local Part = Arguments[2]
+        local Zombie = FindZombie(Part)
+        
+        if not Part or not Zombie then return end
+        
+        local Humanoid = Zombie:FindFirstChild('Humanoid')
+        
+        if not Humanoid then return end
+        if Humanoid.Health <= 0 then return end
+        
+        local Dmg = Settings.DAMAGE.Other
+            
+        if Settings.DAMAGE[Part.Name] then
+            Dmg = Settings.DAMAGE[Part.Name]
+        end
+        
+        if (Humanoid.Health - Dmg) <= 0 then
+            if Part.Name == 'Head' then
+                local HeadshotMusic = Part:FindFirstChild('Headshot'):Clone()
+                HeadshotMusic.Parent = workspace
+                
+                Headshots.Value += 1
+                
+                if HeadshotMusic then
+                    HeadshotMusic:Play()
+                    HeadshotMusic.PlaybackSpeed = 1 + math.random(.01, .1)
+                    task.delay(HeadshotMusic.TimeLength, function() HeadshotMusic:Destroy() end)
+                end
+            end
+            
+            Kills.Value += 1
+        end
+        
+        Humanoid:TakeDamage(Dmg)
+        
+    elseif Arguments[1] == 'START_GAME' then
+        
+        if not Debounce[Player.Name] then
+            Debounce[Player.Name] = true
+            
+            Start.Value = true
+            
+            task.delay(2, function()
+                Debounce[Player.Name] = nil
+            end)
+        end
+        
+    elseif Arguments[1] == 'STOP_GAME' then
+        
+        if not Debounce[Player.Name] then
+            Debounce[Player.Name] = true
+            
+            Start.Value = false
+            Player:LoadCharacter()
+            
+            task.delay(2, function()
+                Debounce[Player.Name] = nil
+            end)
+        end
+        
+    end
+    
+end)
